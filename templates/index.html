@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Options Pricing Engine</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f7f8;
+            padding: 40px;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 30px;
+            font-size: 16px;
+        }
+        .results div {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Options Pricing Engine</h1>
+    <form id="optionForm">
+        <label for="ticker">Ticker Symbol</label>
+        <input type="text" id="ticker" name="ticker" required>
+
+        <button type="button" onclick="fetchDropdowns()">Fetch Option Data</button>
+
+        <label for="expiry">Expiry Date</label>
+        <select id="expiry" name="expiry" required></select>
+
+        <label for="strike">Strike Price</label>
+        <select id="strike" name="strike" required></select>
+
+        <label for="option_type">Option Type</label>
+        <select id="option_type" name="option_type" required>
+            <option value="call">Call</option>
+            <option value="put">Put</option>
+        </select>
+
+        <label for="style">Option Style</label>
+        <select id="style" name="style" onchange="toggleModelOptions()" required>
+            <option value="european">European</option>
+            <option value="american">American</option>
+        </select>
+
+        <label for="model">Model</label>
+        <select id="model" name="model" required>
+            <option value="Black-Scholes">Black-Scholes</option>
+            <option value="Monte Carlo">Monte Carlo</option>
+        </select>
+
+        <button type="submit">Calculate Price</button>
+    </form>
+
+    <div class="results" id="results"></div>
+</div>
+
+<script>
+    function fetchDropdowns() {
+        const ticker = document.getElementById('ticker').value;
+        fetch('/get_option_data', {
+            method: 'POST',
+            body: new URLSearchParams({ ticker })
+        })
+        .then(res => res.json())
+        .then(data => {
+            let expiryDropdown = document.getElementById('expiry');
+            let strikeDropdown = document.getElementById('strike');
+            expiryDropdown.innerHTML = '';
+            strikeDropdown.innerHTML = '';
+            data.expiries.forEach(e => {
+                expiryDropdown.innerHTML += `<option value="${e}">${e}</option>`;
+            });
+            data.strikes.forEach(s => {
+                strikeDropdown.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+        });
+    }
+
+    function toggleModelOptions() {
+        const style = document.getElementById('style').value;
+        const model = document.getElementById('model');
+        model.innerHTML = '';
+        if (style === 'european') {
+            model.innerHTML += '<option value="Black-Scholes">Black-Scholes</option>';
+            model.innerHTML += '<option value="Monte Carlo">Monte Carlo</option>';
+        } else {
+            model.innerHTML += '<option value="Binomial Tree">Binomial Tree</option>';
+        }
+    }
+
+    document.getElementById('optionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch('/price_option', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('results').innerText = data.error;
+                return;
+            }
+            document.getElementById('results').innerHTML = `
+                <div><strong>Spot Price:</strong> $${data.spot_price}</div>
+                <div><strong>Option Price:</strong> $${data.price}</div>
+                <div><strong>Delta:</strong> ${data.delta}</div>
+                <div><strong>Gamma:</strong> ${data.gamma}</div>
+                <div><strong>Vega:</strong> ${data.vega}</div>
+                <div><strong>Theta:</strong> ${data.theta}</div>
+                <div><strong>Rho:</strong> ${data.rho}</div>
+            `;
+        });
+    });
+</script>
+</body>
+</html>
